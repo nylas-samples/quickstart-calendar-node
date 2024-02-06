@@ -57,44 +57,87 @@ app.get("/oauth/exchange", async (req, res) => {
     // In a real app you would store this in a database, associated with a user
     process.env.USER_GRANT_ID = grantId;
 
-    res.json({ message: "OAuth2 flow completed successfully for grant ID: " + grantId });
+    res.json({
+      message: "OAuth2 flow completed successfully for grant ID: " + grantId,
+    });
   } catch (error) {
     res.status(500).send("Failed to exchange authorization code for token");
   }
 });
 
-// route to fetch recent emails
-app.get("/nylas/recent-emails", async (req, res) => {
+// route to fetch primary calendar
+app.get("/nylas/primary-calendar", async (req, res) => {
   try {
     const identifier = process.env.USER_GRANT_ID;
-    const messages = await nylas.messages.list({
+    const calendars = await nylas.calendars.list({
       identifier,
       queryParams: {
         limit: 5,
       },
     });
 
-    res.json(messages);
+    const primaryCalendar = calendars.data.filter((calendar) =>
+      calendar.isPrimary ? true : false
+    )[0];
+
+    // NB: This stores in RAM
+    // In a real app you would store this in a database, associated with a user
+    process.env.PRIMARY_CALENDAR_ID = primaryCalendar.id;
+
+    res.json(primaryCalendar);
   } catch (error) {
     console.error("Error fetching emails:", error);
   }
 });
 
-// route to send an email
-app.get("/nylas/send-email", async (req, res) => {
+// route to list events on primary calendar
+app.get("/nylas/list-events", async (req, res) => {
   try {
-    const sentMessage = await nylas.messages.send({
-      identifier: process.env.USER_GRANT_ID,
-      requestBody: {
-        to: [{ name: "Name", email: process.env.EMAIL }],
-        replyTo: [{ name: "Name", email: process.env.EMAIL }],
-        subject: "Your Subject Here (Ash test)",
-        body: "Your email body here. (Ash test)",
+    const identifier = process.env.USER_GRANT_ID;
+    const calendarId = process.env.PRIMARY_CALENDAR_ID;
+
+    const events = await nylas.events.list({
+      identifier,
+      queryParams: {
+        calendar_id: calendarId,
+        limit: 5,
       },
     });
 
-    res.json(sentMessage);
+    res.json(events);
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error("Error fetching events:", error);
+  }
+});
+
+// route to create an event on primary calendar
+app.get("/nylas/create-event", async (req, res) => {
+  try {
+    const identifier = process.env.USER_GRANT_ID;
+    const calendarId = process.env.PRIMARY_CALENDAR_ID;
+
+    const now = new Date();
+    const startTime = new Date(now.getTime());
+    startTime.setMinutes(now.getMinutes() + 5);
+    const endTime = new Date(now.getTime());
+    endTime.setMinutes(now.getMinutes() + 35);
+
+    const newEvent = await nylas.events.create({
+      identifier,
+      queryParams: {
+        calendarId,
+      },
+      requestBody: {
+        title: "Your event title here",
+        when: {
+          startTime: Math.floor(startTime.getTime() / 1000),
+          endTime: Math.floor(endTime.getTime() / 1000),
+        },
+      },
+    });
+
+    res.json(newEvent);
+  } catch (error) {
+    console.error("Error creating event:", error);
   }
 });
