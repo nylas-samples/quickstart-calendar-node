@@ -90,7 +90,7 @@ app.get("/nylas/primary-calendar", async (req, res) => {
   }
 });
 
-// route to list events on primary calendar
+// route to list events on a calendar
 app.get("/nylas/list-events", async (req, res) => {
   try {
     const identifier = process.env.USER_GRANT_ID;
@@ -110,12 +110,13 @@ app.get("/nylas/list-events", async (req, res) => {
   }
 });
 
-// route to create an event on primary calendar
+// route to create an event on a calendar
 app.get("/nylas/create-event", async (req, res) => {
   try {
     const identifier = process.env.USER_GRANT_ID;
     const calendarId = process.env.PRIMARY_CALENDAR_ID;
 
+    // schedule the event to start in 5 minutes and end in 35 minutes
     const now = new Date();
     const startTime = new Date(now.getTime());
     startTime.setMinutes(now.getMinutes() + 5);
